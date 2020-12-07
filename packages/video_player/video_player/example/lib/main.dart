@@ -7,9 +7,12 @@
 /// An example of using the plugin, controlling lifecycle and playback of the
 /// video.
 
+import 'dart:developer' as dev;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import 'cliplist.dart' as clip;
 
 void main() {
   runApp(
@@ -22,218 +25,135 @@ void main() {
 class _App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        key: const ValueKey<String>('home_page'),
-        appBar: AppBar(
-          title: const Text('Video player example'),
-          actions: <Widget>[
-            IconButton(
-              key: const ValueKey<String>('push_tab'),
-              icon: const Icon(Icons.navigation),
-              onPressed: () {
-                Navigator.push<_PlayerVideoAndPopPage>(
-                  context,
-                  MaterialPageRoute<_PlayerVideoAndPopPage>(
-                    builder: (BuildContext context) => _PlayerVideoAndPopPage(),
-                  ),
-                );
-              },
-            )
-          ],
-          bottom: const TabBar(
-            isScrollable: true,
-            tabs: <Widget>[
-              Tab(
-                icon: Icon(Icons.cloud),
-                text: "Remote",
-              ),
-              Tab(icon: Icon(Icons.insert_drive_file), text: "Asset"),
-              Tab(icon: Icon(Icons.list), text: "List example"),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: <Widget>[
-            _BumbleBeeRemoteVideo(),
-            _ButterFlyAssetVideo(),
-            _ButterFlyAssetVideoInList(),
-          ],
-        ),
-      ),
+    return Scaffold(
+      body: _WorkoutDemoVideo(),
     );
   }
 }
 
-class _ButterFlyAssetVideoInList extends StatelessWidget {
+class _WorkoutDemoVideo extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: <Widget>[
-        _ExampleCard(title: "Item a"),
-        _ExampleCard(title: "Item b"),
-        _ExampleCard(title: "Item c"),
-        _ExampleCard(title: "Item d"),
-        _ExampleCard(title: "Item e"),
-        _ExampleCard(title: "Item f"),
-        _ExampleCard(title: "Item g"),
-        Card(
-            child: Column(children: <Widget>[
-          Column(
-            children: <Widget>[
-              const ListTile(
-                leading: Icon(Icons.cake),
-                title: Text("Video video"),
-              ),
-              Stack(
-                  alignment: FractionalOffset.bottomRight +
-                      const FractionalOffset(-0.1, -0.1),
-                  children: <Widget>[
-                    _ButterFlyAssetVideo(),
-                    Image.asset('assets/flutter-mark-square-64.png'),
-                  ]),
-            ],
-          ),
-        ])),
-        _ExampleCard(title: "Item h"),
-        _ExampleCard(title: "Item i"),
-        _ExampleCard(title: "Item j"),
-        _ExampleCard(title: "Item k"),
-        _ExampleCard(title: "Item l"),
-      ],
-    );
-  }
+  _WorkoutDemoVideoState createState() => _WorkoutDemoVideoState();
 }
 
-/// A filler card to show the video in a list of scrolling contents.
-class _ExampleCard extends StatelessWidget {
-  const _ExampleCard({Key key, this.title}) : super(key: key);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          ListTile(
-            leading: const Icon(Icons.airline_seat_flat_angled),
-            title: Text(title),
-          ),
-          ButtonBar(
-            children: <Widget>[
-              FlatButton(
-                child: const Text('BUY TICKETS'),
-                onPressed: () {
-                  /* ... */
-                },
-              ),
-              FlatButton(
-                child: const Text('SELL TICKETS'),
-                onPressed: () {
-                  /* ... */
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ButterFlyAssetVideo extends StatefulWidget {
-  @override
-  _ButterFlyAssetVideoState createState() => _ButterFlyAssetVideoState();
-}
-
-class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
+class _WorkoutDemoVideoState extends State<_WorkoutDemoVideo> {
+  clip.WorkOutCourse workoutCourse;
+  bool counted;
+  bool isPlaying;
+  bool isIntroSkipped;
+  bool clipInSeeking;
+  String playbackButton;
+  int sizeOfSeq = 9;
   VideoPlayerController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/Butterfly-209.mp4');
 
-    _controller.addListener(() {
-      setState(() {});
-    });
-    _controller.setLooping(true);
+    // no status bar in android
+    SystemChrome.setEnabledSystemUIOverlays([]);
+
+    initProgram();
+  }
+
+  // initProgram initiates the program.
+  // Set up course variables and controller.
+  void initProgram() {
+    isIntroSkipped = false;
+    counted = false;
+    clipInSeeking = false;
+    isPlaying = false;
+    playbackButton = "시작";
+
+    initWorkOutCourse();
+    initController();
+  }
+
+  void videoControllerListener() {
+    if (isClipDone(workoutCourse)) {
+      if (clipInSeeking) {
+        dev.log('[INFO | isClipDone] In seek now');
+        return;
+      }
+      setState(() {
+        clipInSeeking = true;
+        var clip = workoutCourse.next(counted);
+        if (clip == null) {
+          return;
+        }
+        counted = false;
+        dev.log('[${DateTime.now()} | seek] ${clip.st} msec',
+            time: DateTime.now());
+        _controller.seekTo(Duration(milliseconds: clip.st));
+        clipInSeeking = false;
+      });
+    } else if (workoutCourse.getCurrentClipType() == clip.WAIT && counted) {
+      clipInSeeking = true;
+      // dev.log('[${DateTime.now()} | Listener] clip done');
+      var clip = workoutCourse.next(counted);
+
+      if (clip != null) {
+        counted = false;
+        dev.log('[${DateTime.now()} | seek] ${clip.st} msec',
+            time: DateTime.now());
+        _controller.seekTo(Duration(milliseconds: clip.st));
+        clipInSeeking = false;
+      }
+    }
+  }
+
+  void initController() {
+    _controller = VideoPlayerController.asset('assets/PushUpEditedLow.mp4');
+    _controller.addListener(videoControllerListener);
+
+    _controller.setLooping(false);
     _controller.initialize().then((_) => setState(() {}));
-    _controller.play();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  bool isClipDone(clip.WorkOutCourse workoutCourse) {
+    if (workoutCourse.getCurrentClip() == null) {
+      dev.log('currentClip null');
+      return false;
+    }
+    int pos = _controller.value.position.inMilliseconds;
+    int end = workoutCourse.getCurrentClip().end;
+    // dev.log('[pos vs end] $pos vs $end');
+    return (pos - end).abs() <= 500;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.only(top: 20.0),
-          ),
-          const Text('With assets mp4'),
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: <Widget>[
-                  VideoPlayer(_controller),
-                  _ControlsOverlay(controller: _controller),
-                  VideoProgressIndicator(_controller, allowScrubbing: true),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+  // Four things to init: Intro, Count, Poke, and Wait.
+  // This is only for testing.
+  void initWorkOutCourse() {
+    workoutCourse = clip.WorkOutCourse();
+    workoutCourse.addClip(clip.INTRO, 0, 47000, 'intro');
 
-class _BumbleBeeRemoteVideo extends StatefulWidget {
-  @override
-  _BumbleBeeRemoteVideoState createState() => _BumbleBeeRemoteVideoState();
-}
+    workoutCourse.addClip(clip.COUNT, 47000, 51200, 'count 1');
+    workoutCourse.addClip(clip.COUNT, 51200, 54450, 'count 2');
+    workoutCourse.addClip(clip.COUNT, 54450, 57700, 'count 3');
+    workoutCourse.addClip(clip.COUNT, 57700, 61000, 'count 4');
+    workoutCourse.addClip(clip.COUNT, 61000, 65000, 'count 5');
 
-class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
-  VideoPlayerController _controller;
+    workoutCourse.addClip(clip.POKE, 67000, 71000, 'poke 1');
+    workoutCourse.addClip(clip.POKE, 71000, 75000, 'poke 2');
+    workoutCourse.addClip(clip.POKE, 75000, 78000, 'poke 3');
+    workoutCourse.addClip(clip.POKE, 78000, 82000, 'poke 4');
+    workoutCourse.addClip(clip.POKE, 82000, 88000, 'poke 5');
 
-  Future<ClosedCaptionFile> _loadCaptions() async {
-    final String fileContents = await DefaultAssetBundle.of(context)
-        .loadString('assets/bumble_bee_captions.srt');
-    return SubRipCaptionFile(fileContents);
+    workoutCourse.addClip(clip.DONE, 88000, 93000, 'welldone');
+
+    workoutCourse.addClip(clip.WAIT, 65000, 67000, 'wait');
+
+    workoutCourse.readyIntro();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.network(
-      'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-      closedCaptionFile: _loadCaptions(),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
-
-    _controller.addListener(() {
-      setState(() {});
-    });
-    _controller.setLooping(true);
-    _controller.initialize();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void rewindCourse() {
+    clipInSeeking = true;
+    isIntroSkipped = false;
+    counted = false;
+    workoutCourse.rewind();
+    _controller.seekTo(Duration(microseconds: 0));
+    clipInSeeking = false;
+    return;
   }
 
   @override
@@ -241,158 +161,104 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
     return SingleChildScrollView(
       child: Column(
         children: <Widget>[
-          Container(padding: const EdgeInsets.only(top: 20.0)),
-          const Text('With remote mp4'),
           Container(
-            padding: const EdgeInsets.all(20),
+            width: MediaQuery.of(context).size.width,
             child: AspectRatio(
               aspectRatio: _controller.value.aspectRatio,
               child: Stack(
                 alignment: Alignment.bottomCenter,
                 children: <Widget>[
                   VideoPlayer(_controller),
-                  ClosedCaption(text: _controller.value.caption.text),
-                  _ControlsOverlay(controller: _controller),
-                  VideoProgressIndicator(_controller, allowScrubbing: true),
                 ],
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ControlsOverlay extends StatelessWidget {
-  const _ControlsOverlay({Key key, this.controller}) : super(key: key);
-
-  static const _examplePlaybackRates = [
-    0.25,
-    0.5,
-    1.0,
-    1.5,
-    2.0,
-    3.0,
-    5.0,
-    10.0,
-  ];
-
-  final VideoPlayerController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        AnimatedSwitcher(
-          duration: Duration(milliseconds: 50),
-          reverseDuration: Duration(milliseconds: 200),
-          child: controller.value.isPlaying
-              ? SizedBox.shrink()
-              : Container(
-                  color: Colors.black26,
+          Row(
+            children: [
+              Expanded(
+                child: FlatButton(
+                  onPressed: () {
+                    // TODO: 그냥 바로 0초로 가게 테스트해보기
+                    setState(() => {
+                          rewindCourse(),
+                          // _controller.seekTo(Duration(microseconds: 0)),
+                        });
+                  },
                   child: Center(
-                    child: Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 100.0,
-                    ),
+                    child: Text('처음부터'),
                   ),
                 ),
-        ),
-        GestureDetector(
-          onTap: () {
-            controller.value.isPlaying ? controller.pause() : controller.play();
-          },
-        ),
-        Align(
-          alignment: Alignment.topRight,
-          child: PopupMenuButton<double>(
-            initialValue: controller.value.playbackSpeed,
-            tooltip: 'Playback speed',
-            onSelected: (speed) {
-              controller.setPlaybackSpeed(speed);
-            },
-            itemBuilder: (context) {
-              return [
-                for (final speed in _examplePlaybackRates)
-                  PopupMenuItem(
-                    value: speed,
-                    child: Text('${speed}x'),
-                  )
-              ];
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                // Using less vertical padding as the text is also longer
-                // horizontally, so it feels like it would need more spacing
-                // horizontally (matching the aspect ratio of the video).
-                vertical: 12,
-                horizontal: 16,
               ),
-              child: Text('${controller.value.playbackSpeed}x'),
-            ),
+              Expanded(
+                child: FlatButton(
+                  // skip button
+                  onPressed: () {
+                    if (isIntroSkipped) {
+                      dev.log('Already skipped.');
+                      return;
+                    }
+                    isIntroSkipped = true;
+                    counted = false;
+                    workoutCourse.skipIntro();
+                    var tmp = workoutCourse.next(counted);
+
+                    setState(() {
+                      if (!clipInSeeking) {
+                        clipInSeeking = true;
+                        dev.log('[${DateTime.now()} | seek] ${tmp.st} msec',
+                            time: DateTime.now());
+                        _controller.seekTo(Duration(milliseconds: tmp.st));
+                        clipInSeeking = false;
+                      }
+                    });
+                  },
+                  child: Center(
+                    child: Text("인트로 스킵하기"),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: FlatButton(
+                  onPressed: () => {
+                    dev.log("$playbackButton button touched."),
+                    setState(() => {
+                          if (isPlaying)
+                            {_controller.pause()}
+                          else
+                            {_controller.play()},
+                          isPlaying = isPlaying ? false : true,
+                          playbackButton = isPlaying ? "정지" : "시작"
+                        })
+                  },
+                  child: Center(
+                    child: Text(playbackButton),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: FlatButton(
+                  onPressed: () => {
+                    setState(() => {
+                          dev.log('[INFO] count touched'),
+                          counted = true,
+                          print('\a'),
+                        })
+                  },
+                  child: Center(
+                    child: Text("카운트"),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
-  }
-}
-
-class _PlayerVideoAndPopPage extends StatefulWidget {
-  @override
-  _PlayerVideoAndPopPageState createState() => _PlayerVideoAndPopPageState();
-}
-
-class _PlayerVideoAndPopPageState extends State<_PlayerVideoAndPopPage> {
-  VideoPlayerController _videoPlayerController;
-  bool startedPlaying = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _videoPlayerController =
-        VideoPlayerController.asset('assets/Butterfly-209.mp4');
-    _videoPlayerController.addListener(() {
-      if (startedPlaying && !_videoPlayerController.value.isPlaying) {
-        Navigator.pop(context);
-      }
-    });
   }
 
   @override
   void dispose() {
-    _videoPlayerController.dispose();
+    _controller.dispose();
     super.dispose();
-  }
-
-  Future<bool> started() async {
-    await _videoPlayerController.initialize();
-    await _videoPlayerController.play();
-    startedPlaying = true;
-    return true;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 0,
-      child: Center(
-        child: FutureBuilder<bool>(
-          future: started(),
-          builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-            if (snapshot.data == true) {
-              return AspectRatio(
-                aspectRatio: _videoPlayerController.value.aspectRatio,
-                child: VideoPlayer(_videoPlayerController),
-              );
-            } else {
-              return const Text('waiting for video to load');
-            }
-          },
-        ),
-      ),
-    );
   }
 }

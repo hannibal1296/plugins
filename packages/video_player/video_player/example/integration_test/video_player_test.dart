@@ -16,7 +16,7 @@ void main() {
 
   group('asset videos', () {
     setUp(() {
-      _controller = VideoPlayerController.asset('assets/Butterfly-209.mp4');
+      _controller = VideoPlayerController.asset('assets/PushUpEditedLow.mp4');
     });
 
     testWidgets('can be initialized', (WidgetTester tester) async {
