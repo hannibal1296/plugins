@@ -7,9 +7,308 @@
 /// An example of using the plugin, controlling lifecycle and playback of the
 /// video.
 
+import 'dart:developer' as dev;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+
+class VideoClip {
+  int st;
+  int end;
+  String desc;
+
+  VideoClip(this.st, this.end, this.desc);
+}
+
+class BaseVideoClipList {
+  void addVideoClip(VideoClip clip) {}
+
+  VideoClip next() {
+    return null;
+  }
+
+  void increaseIndex() {}
+
+  // Is it at the first index?
+  bool isFirst() {
+    return false;
+  }
+
+  // Is it at the last index?
+  bool isLast() {
+    return false;
+  }
+}
+
+class IntroClipList implements BaseVideoClipList {
+  int index;
+  List<VideoClip> clips;
+
+  IntroClipList() {
+    this.index = -1;
+    this.clips = List();
+  }
+
+  void addVideoClip(VideoClip clip) {
+    this.clips.add(clip);
+  }
+
+  VideoClip getCurrent() {
+    return this.clips[this.index];
+  }
+
+  void increaseIndex() {
+    if (!this.isLast()) {
+      this.index++;
+    }
+  }
+
+  bool isFirst() {
+    return this.index == -1 ? true : false;
+  }
+
+  bool isLast() {
+    return this.index == this.clips.length - 1 ? true : false;
+  }
+
+  // IntroClipList.next() returns null if it's the end of the list.
+  VideoClip next() {
+    if (this.isLast()) {
+      return null;
+    }
+    this.increaseIndex();
+    return this.clips[this.index];
+  }
+}
+
+class CountClipList implements BaseVideoClipList {
+  int index;
+  List<VideoClip> clips;
+
+  CountClipList() {
+    this.index = -1;
+    this.clips = List();
+  }
+
+  void addVideoClip(VideoClip clip) {
+    this.clips.add(clip);
+  }
+
+  void increaseIndex() {
+    if (!this.isLast()) {
+      this.index++;
+    }
+  }
+
+  bool isFirst() {
+    return this.index == -1 ? true : false;
+  }
+
+  bool isLast() {
+    return this.index == this.clips.length - 1 ? true : false;
+  }
+
+  VideoClip next() {
+    if (this.isLast()) {
+      return null;
+    }
+    this.increaseIndex();
+    return this.clips[this.index];
+  }
+}
+
+class WaitClipList implements BaseVideoClipList {
+  int index;
+  List<VideoClip> clips;
+
+  WaitClipList() {
+    this.index = -1;
+    this.clips = List();
+  }
+
+  void addVideoClip(VideoClip clip) {
+    this.clips.add(clip);
+  }
+
+  // If _index is invalid, it returns null.
+  VideoClip get(int _index) {
+    return _index < this.clips.length ? this.clips[_index] : null;
+  }
+
+  // WaitClipList iterates repetitively.
+  void increaseIndex() {
+    this.index = (this.index + 1) % this.clips.length;
+  }
+
+  bool isFirst() {
+    return this.index == -1 ? true : false;
+  }
+
+  bool isLast() {
+    return this.index == this.clips.length - 1 ? true : false;
+  }
+
+  VideoClip next() {
+    this.increaseIndex();
+    return this.clips[this.index];
+  }
+}
+
+class PokeClipList implements BaseVideoClipList {
+  int index;
+  List<VideoClip> clips;
+
+  PokeClipList() {
+    this.index = -1;
+    this.clips = List();
+  }
+
+  void addVideoClip(VideoClip clip) {
+    this.clips.add(clip);
+  }
+
+  VideoClip getCurrent() {
+    if (this.index == -1) {
+      return null;
+    }
+    return this.clips[this.index];
+  }
+
+  void increaseIndex() {
+    this.index = (this.index + 1) % this.clips.length;
+  }
+
+  bool isFirst() {
+    return this.index == -1 ? true : false;
+  }
+
+  bool isLast() {
+    return this.index == this.clips.length - 1 ? true : false;
+  }
+
+  VideoClip next() {
+    this.increaseIndex();
+    return this.clips[this.index];
+  }
+}
+
+class WellDoneClipList implements BaseVideoClipList {
+  int index;
+  List<VideoClip> clips;
+
+  WellDoneClipList() {
+    this.index = -1;
+    this.clips = List();
+  }
+
+  void addVideoClip(VideoClip clip) {
+    this.clips.add(clip);
+  }
+
+  VideoClip getCurrent() {
+    if (this.index == -1) {
+      return null;
+    }
+    return this.clips[this.index];
+  }
+
+  void increaseIndex() {
+    if (!this.isLast()) {
+      this.index++;
+    }
+  }
+
+  bool isFirst() {
+    return this.index == -1 ? true : false;
+  }
+
+  bool isLast() {
+    return this.index == this.clips.length - 1 ? true : false;
+  }
+
+  VideoClip next() {
+    if (this.isLast()) {
+      return null;
+    }
+    this.increaseIndex();
+    return this.clips[this.index];
+  }
+}
+
+const int INTRO = 1;
+const int WAIT = 2;
+const int COUNT = 3;
+const int POKE = 4;
+const int DONE = 5;
+
+class WorkOutCourse {
+  IntroClipList introClips;
+  WaitClipList waitClips;
+  PokeClipList pokeClips;
+  CountClipList countClips;
+  WellDoneClipList wellDoneClips;
+
+  VideoClip currentClip;
+  int currentClipType;
+
+  WorkOutCourse() {
+    this.introClips = IntroClipList();
+    this.waitClips = WaitClipList();
+    this.pokeClips = PokeClipList();
+    this.countClips = CountClipList();
+    this.wellDoneClips = WellDoneClipList();
+
+    this.currentClip = null;
+    this.currentClipType = INTRO;
+  }
+
+  // Return null when it's done.
+  VideoClip next(bool counted) {
+    switch (this.currentClipType) {
+      case INTRO:
+        if (this.introClips.isLast()) {
+          this.currentClipType = COUNT;
+          return currentClip = this.countClips.next(); // intro to count
+        }
+        return currentClip = this.introClips.next(); // intro to intro
+
+      case COUNT:
+        if (!counted) {
+          this.currentClipType = WAIT;
+          return currentClip = this.waitClips.next(); // count to wait
+        }
+        // 여기부턴 counted
+        if (this.countClips.isLast()) {
+          this.currentClipType = DONE;
+          return currentClip = this.wellDoneClips.next(); // count to done
+        }
+        return currentClip = this.countClips.next(); // count to count
+
+      case WAIT:
+        if (!counted) {
+          // 기다리는데 카운트 안 들어옴.
+          return currentClip = this.pokeClips.next(); // wait to poke
+        }
+        this.currentClipType = COUNT;
+        return currentClip = this.countClips.next(); // wait to count
+
+      case POKE:
+        if (counted) {
+          this.currentClipType = COUNT;
+          return currentClip = this.countClips.next();
+        }
+        this.currentClipType = WAIT;
+        return currentClip = this.waitClips.next();
+
+      default: // DONE
+        this.currentClipType = DONE;
+        if (this.wellDoneClips.isLast()) {
+          return currentClip = null;
+        }
+        return currentClip = this.wellDoneClips.next();
+    }
+  }
+}
 
 void main() {
   runApp(
@@ -22,147 +321,79 @@ void main() {
 class _App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        key: const ValueKey<String>('home_page'),
-        appBar: AppBar(
-          title: const Text('Video player example'),
-          actions: <Widget>[
-            IconButton(
-              key: const ValueKey<String>('push_tab'),
-              icon: const Icon(Icons.navigation),
-              onPressed: () {
-                Navigator.push<_PlayerVideoAndPopPage>(
-                  context,
-                  MaterialPageRoute<_PlayerVideoAndPopPage>(
-                    builder: (BuildContext context) => _PlayerVideoAndPopPage(),
-                  ),
-                );
-              },
-            )
-          ],
-          bottom: const TabBar(
-            isScrollable: true,
-            tabs: <Widget>[
-              Tab(
-                icon: Icon(Icons.cloud),
-                text: "Remote",
-              ),
-              Tab(icon: Icon(Icons.insert_drive_file), text: "Asset"),
-              Tab(icon: Icon(Icons.list), text: "List example"),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: <Widget>[
-            _BumbleBeeRemoteVideo(),
-            _ButterFlyAssetVideo(),
-            _ButterFlyAssetVideoInList(),
-          ],
-        ),
-      ),
+    return Scaffold(
+      body: _WorkoutDemoVideo(),
     );
   }
 }
 
-class _ButterFlyAssetVideoInList extends StatelessWidget {
+class _WorkoutDemoVideo extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: <Widget>[
-        _ExampleCard(title: "Item a"),
-        _ExampleCard(title: "Item b"),
-        _ExampleCard(title: "Item c"),
-        _ExampleCard(title: "Item d"),
-        _ExampleCard(title: "Item e"),
-        _ExampleCard(title: "Item f"),
-        _ExampleCard(title: "Item g"),
-        Card(
-            child: Column(children: <Widget>[
-          Column(
-            children: <Widget>[
-              const ListTile(
-                leading: Icon(Icons.cake),
-                title: Text("Video video"),
-              ),
-              Stack(
-                  alignment: FractionalOffset.bottomRight +
-                      const FractionalOffset(-0.1, -0.1),
-                  children: <Widget>[
-                    _ButterFlyAssetVideo(),
-                    Image.asset('assets/flutter-mark-square-64.png'),
-                  ]),
-            ],
-          ),
-        ])),
-        _ExampleCard(title: "Item h"),
-        _ExampleCard(title: "Item i"),
-        _ExampleCard(title: "Item j"),
-        _ExampleCard(title: "Item k"),
-        _ExampleCard(title: "Item l"),
-      ],
-    );
-  }
+  _WorkoutDemoVideoState createState() => _WorkoutDemoVideoState();
 }
 
-/// A filler card to show the video in a list of scrolling contents.
-class _ExampleCard extends StatelessWidget {
-  const _ExampleCard({Key key, this.title}) : super(key: key);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          ListTile(
-            leading: const Icon(Icons.airline_seat_flat_angled),
-            title: Text(title),
-          ),
-          ButtonBar(
-            children: <Widget>[
-              FlatButton(
-                child: const Text('BUY TICKETS'),
-                onPressed: () {
-                  /* ... */
-                },
-              ),
-              FlatButton(
-                child: const Text('SELL TICKETS'),
-                onPressed: () {
-                  /* ... */
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ButterFlyAssetVideo extends StatefulWidget {
-  @override
-  _ButterFlyAssetVideoState createState() => _ButterFlyAssetVideoState();
-}
-
-class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
+class _WorkoutDemoVideoState extends State<_WorkoutDemoVideo> {
+  WorkOutCourse workoutCourse;
+  bool counted;
+  bool isPlaying;
+  bool isIntro;
+  String playbackButton;
+  int sizeOfSeq = 9;
   VideoPlayerController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/Butterfly-209.mp4');
+    initWorkOutCourse();
 
+    isIntro = true;
+    counted = false;
+    isPlaying = false;
+    playbackButton = "시작";
+    _controller = VideoPlayerController.asset('assets/PushUpDemoEdited.mp4');
     _controller.addListener(() {
-      setState(() {});
+      if (isClipDone()) {
+        var clip = workoutCourse.next(counted);
+        if (clip == null) {
+          _controller.pause(); // done
+          return;
+        }
+        counted = false;
+        _controller.seekTo(Duration(milliseconds: clip.st));
+      }
     });
-    _controller.setLooping(true);
+    _controller.setLooping(false);
     _controller.initialize().then((_) => setState(() {}));
-    _controller.play();
+  }
+
+  bool isClipDone() {
+    if (workoutCourse.currentClip == null) {
+      return false;
+    }
+
+    return _controller.value.position.inMilliseconds >=
+        workoutCourse.currentClip.end;
+  }
+
+  // Four things to init: Intro, Count, Poke, and Wait.
+  void initWorkOutCourse() {
+    workoutCourse = WorkOutCourse();
+    workoutCourse.introClips.addVideoClip(VideoClip(0, 47000, 'Intro 1'));
+    workoutCourse.currentClip = workoutCourse.introClips.next();
+
+    workoutCourse.countClips.addVideoClip(VideoClip(47000, 51000, 'Count 1'));
+    workoutCourse.countClips.addVideoClip(VideoClip(51000, 54000, 'Count 2'));
+    workoutCourse.countClips.addVideoClip(VideoClip(54000, 58000, 'Count 3'));
+    workoutCourse.countClips.addVideoClip(VideoClip(58000, 60000, 'Count 4'));
+    workoutCourse.countClips.addVideoClip(VideoClip(60000, 64000, 'Count 5'));
+
+    workoutCourse.pokeClips.addVideoClip(VideoClip(67000, 71000, 'Poke 1'));
+    workoutCourse.pokeClips.addVideoClip(VideoClip(71000, 75000, 'Poke 2'));
+    workoutCourse.pokeClips.addVideoClip(VideoClip(75000, 78000, 'Poke 3'));
+    workoutCourse.pokeClips.addVideoClip(VideoClip(78000, 82000, 'Poke 4'));
+    workoutCourse.pokeClips.addVideoClip(VideoClip(82000, 86000, 'Poke 5'));
+
+    workoutCourse.waitClips.addVideoClip(VideoClip(64000, 66000, 'Wait'));
   }
 
   @override
@@ -179,8 +410,8 @@ class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
           Container(
             padding: const EdgeInsets.only(top: 20.0),
           ),
-          const Text('With assets mp4'),
           Container(
+            width: MediaQuery.of(context).size.width * 0.9,
             padding: const EdgeInsets.all(20),
             child: AspectRatio(
               aspectRatio: _controller.value.aspectRatio,
@@ -188,210 +419,49 @@ class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
                 alignment: Alignment.bottomCenter,
                 children: <Widget>[
                   VideoPlayer(_controller),
-                  _ControlsOverlay(controller: _controller),
-                  VideoProgressIndicator(_controller, allowScrubbing: true),
                 ],
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BumbleBeeRemoteVideo extends StatefulWidget {
-  @override
-  _BumbleBeeRemoteVideoState createState() => _BumbleBeeRemoteVideoState();
-}
-
-class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
-  VideoPlayerController _controller;
-
-  Future<ClosedCaptionFile> _loadCaptions() async {
-    final String fileContents = await DefaultAssetBundle.of(context)
-        .loadString('assets/bumble_bee_captions.srt');
-    return SubRipCaptionFile(fileContents);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.network(
-      'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-      closedCaptionFile: _loadCaptions(),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
-
-    _controller.addListener(() {
-      setState(() {});
-    });
-    _controller.setLooping(true);
-    _controller.initialize();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: <Widget>[
-          Container(padding: const EdgeInsets.only(top: 20.0)),
-          const Text('With remote mp4'),
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: <Widget>[
-                  VideoPlayer(_controller),
-                  ClosedCaption(text: _controller.value.caption.text),
-                  _ControlsOverlay(controller: _controller),
-                  VideoProgressIndicator(_controller, allowScrubbing: true),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ControlsOverlay extends StatelessWidget {
-  const _ControlsOverlay({Key key, this.controller}) : super(key: key);
-
-  static const _examplePlaybackRates = [
-    0.25,
-    0.5,
-    1.0,
-    1.5,
-    2.0,
-    3.0,
-    5.0,
-    10.0,
-  ];
-
-  final VideoPlayerController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        AnimatedSwitcher(
-          duration: Duration(milliseconds: 50),
-          reverseDuration: Duration(milliseconds: 200),
-          child: controller.value.isPlaying
-              ? SizedBox.shrink()
-              : Container(
-                  color: Colors.black26,
-                  child: Center(
-                    child: Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 100.0,
-                    ),
-                  ),
+          Row(
+            children: [
+              FlatButton(
+                onPressed: () {
+                  counted = false;
+                  workoutCourse.currentClipType = COUNT;
+                  var tmp = workoutCourse.countClips.next();
+                  dev.log('${tmp.st}, ${tmp.end}');
+                  _controller.seekTo(Duration(milliseconds: tmp.st));
+                },
+                child: Center(
+                  child: Text("인트로 스킵하기"),
                 ),
-        ),
-        GestureDetector(
-          onTap: () {
-            controller.value.isPlaying ? controller.pause() : controller.play();
-          },
-        ),
-        Align(
-          alignment: Alignment.topRight,
-          child: PopupMenuButton<double>(
-            initialValue: controller.value.playbackSpeed,
-            tooltip: 'Playback speed',
-            onSelected: (speed) {
-              controller.setPlaybackSpeed(speed);
-            },
-            itemBuilder: (context) {
-              return [
-                for (final speed in _examplePlaybackRates)
-                  PopupMenuItem(
-                    value: speed,
-                    child: Text('${speed}x'),
-                  )
-              ];
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                // Using less vertical padding as the text is also longer
-                // horizontally, so it feels like it would need more spacing
-                // horizontally (matching the aspect ratio of the video).
-                vertical: 12,
-                horizontal: 16,
               ),
-              child: Text('${controller.value.playbackSpeed}x'),
-            ),
+              FlatButton(
+                onPressed: () => {
+                  dev.log("$playbackButton button touched."),
+                  if (isPlaying)
+                    {_controller.pause()}
+                  else
+                    {_controller.play()},
+                  setState(() => {
+                        isPlaying = isPlaying ? false : true,
+                        playbackButton = isPlaying ? "정지" : "시작"
+                      })
+                },
+                child: Center(
+                  child: Text(playbackButton),
+                ),
+              ),
+              FlatButton(
+                onPressed: () => {setState(() => counted = true)},
+                child: Center(
+                  child: Text("카운트"),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PlayerVideoAndPopPage extends StatefulWidget {
-  @override
-  _PlayerVideoAndPopPageState createState() => _PlayerVideoAndPopPageState();
-}
-
-class _PlayerVideoAndPopPageState extends State<_PlayerVideoAndPopPage> {
-  VideoPlayerController _videoPlayerController;
-  bool startedPlaying = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _videoPlayerController =
-        VideoPlayerController.asset('assets/Butterfly-209.mp4');
-    _videoPlayerController.addListener(() {
-      if (startedPlaying && !_videoPlayerController.value.isPlaying) {
-        Navigator.pop(context);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _videoPlayerController.dispose();
-    super.dispose();
-  }
-
-  Future<bool> started() async {
-    await _videoPlayerController.initialize();
-    await _videoPlayerController.play();
-    startedPlaying = true;
-    return true;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 0,
-      child: Center(
-        child: FutureBuilder<bool>(
-          future: started(),
-          builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-            if (snapshot.data == true) {
-              return AspectRatio(
-                aspectRatio: _videoPlayerController.value.aspectRatio,
-                child: VideoPlayer(_videoPlayerController),
-              );
-            } else {
-              return const Text('waiting for video to load');
-            }
-          },
-        ),
+        ],
       ),
     );
   }

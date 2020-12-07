@@ -3,7 +3,7 @@
 
   <application
     android:icon="@mipmap/ic_launcher"
-    android:label="video_player_example"
+    android:label="편해 운동 데모"
     android:name="io.flutter.app.FlutterApplication"
     android:networkSecurityConfig="@xml/network_security_config">
     <activity
