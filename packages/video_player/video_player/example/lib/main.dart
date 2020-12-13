@@ -27,6 +27,7 @@ class _App extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _WorkoutDemoVideo(),
+      backgroundColor: Colors.black,
     );
   }
 }
@@ -156,102 +157,141 @@ class _WorkoutDemoVideoState extends State<_WorkoutDemoVideo> {
     return;
   }
 
+  /// Column > AspectRatio > Stack > {VideoPlayer, Container}
+  /// > Row > {4 * Expanded > FlatButton > Center > Text > TextStyle }
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: <Widget>[
-          Container(
-            width: MediaQuery.of(context).size.width,
-            child: AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: <Widget>[
-                  VideoPlayer(_controller),
-                ],
-              ),
-            ),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Container(
+          child: AspectRatio(
+            aspectRatio: _controller.value.aspectRatio,
+            child: _contentLayer(),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: FlatButton(
-                  onPressed: () {
-                    // TODO: 그냥 바로 0초로 가게 테스트해보기
-                    setState(() => {
-                          rewindCourse(),
-                          // _controller.seekTo(Duration(microseconds: 0)),
-                        });
-                  },
-                  child: Center(
-                    child: Text('처음부터'),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: FlatButton(
-                  // skip button
-                  onPressed: () {
-                    if (isIntroSkipped) {
-                      dev.log('Already skipped.');
-                      return;
-                    }
-                    isIntroSkipped = true;
-                    counted = false;
-                    workoutCourse.skipIntro();
-                    var tmp = workoutCourse.next(counted);
+        ),
+      ],
+    );
+  }
 
-                    setState(() {
-                      if (!clipInSeeking) {
-                        clipInSeeking = true;
-                        dev.log('[${DateTime.now()} | seek] ${tmp.st} msec',
-                            time: DateTime.now());
-                        _controller.seekTo(Duration(milliseconds: tmp.st));
-                        clipInSeeking = false;
-                      }
-                    });
-                  },
-                  child: Center(
-                    child: Text("인트로 스킵하기"),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: FlatButton(
-                  onPressed: () => {
-                    dev.log("$playbackButton button touched."),
-                    setState(() => {
-                          if (isPlaying)
-                            {_controller.pause()}
-                          else
-                            {_controller.play()},
-                          isPlaying = isPlaying ? false : true,
-                          playbackButton = isPlaying ? "정지" : "시작"
-                        })
-                  },
-                  child: Center(
-                    child: Text(playbackButton),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: FlatButton(
-                  onPressed: () => {
-                    setState(() => {
-                          dev.log('[INFO] count touched'),
-                          counted = true,
-                          print('\a'),
-                        })
-                  },
-                  child: Center(
-                    child: Text("카운트"),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+  Stack _contentLayer() {
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: <Widget>[
+        VideoPlayer(_controller),
+
+        // Control panel
+        _controlPanel(),
+      ],
+    );
+  }
+
+  Container _controlPanel() {
+    return Container(
+      height: 50,
+      child: _controlPanelRow(),
+    );
+  }
+
+  Row _controlPanelRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Expanded(
+          child: _backToStartButton(),
+        ),
+        Expanded(
+          child: _introSkipButton(),
+        ),
+        Expanded(
+          child: _startButton(),
+        ),
+        Expanded(
+          child: _countButton(),
+        ),
+      ],
+    );
+  }
+
+  FlatButton _backToStartButton() {
+    return FlatButton(
+      onPressed: () {
+        setState(() => {
+              rewindCourse(),
+            });
+      },
+      child: Center(
+        child: _whiteCenterAlignedText('처음부터'),
+      ),
+    );
+  }
+
+  FlatButton _introSkipButton() {
+    return FlatButton(
+      // skip button
+      onPressed: () {
+        if (isIntroSkipped) {
+          dev.log('Already skipped.');
+          return;
+        }
+        isIntroSkipped = true;
+        counted = false;
+        workoutCourse.skipIntro();
+        var tmp = workoutCourse.next(counted);
+
+        setState(() {
+          if (!clipInSeeking) {
+            clipInSeeking = true;
+            dev.log('[${DateTime.now()} | seek] ${tmp.st} msec',
+                time: DateTime.now());
+            _controller.seekTo(Duration(milliseconds: tmp.st));
+            clipInSeeking = false;
+          }
+        });
+      },
+      child: Center(
+        child: _whiteCenterAlignedText('인트로\n스킵하기'),
+      ),
+    );
+  }
+
+  FlatButton _startButton() {
+    return FlatButton(
+      onPressed: () => {
+        dev.log("$playbackButton button touched."),
+        setState(() => {
+              if (isPlaying) {_controller.pause()} else {_controller.play()},
+              isPlaying = isPlaying ? false : true,
+              playbackButton = isPlaying ? "정지" : "시작"
+            })
+      },
+      child: Center(
+        child: _whiteCenterAlignedText(playbackButton),
+      ),
+    );
+  }
+
+  FlatButton _countButton() {
+    return FlatButton(
+      onPressed: () => {
+        setState(() => {
+              counted = true,
+              print('\a'),
+            })
+      },
+      child: Center(
+        child: _whiteCenterAlignedText("카운트"),
+      ),
+    );
+  }
+
+  Text _whiteCenterAlignedText(String text) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
       ),
     );
   }
